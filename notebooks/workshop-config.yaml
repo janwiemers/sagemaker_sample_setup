@@ -1,0 +1,33 @@
+features:
+  - rentalcar_price_per_day
+  - rentalcar_rating
+  - rentalcar_renter_rating
+  - rentalcar_deposit_rating
+  - rentalcar_free_miles
+  - insurance_excess
+  - rentalcar_insurance_liability_min_euro
+  - full_additional_insurance
+  - premium_checkin_type
+  - status_available_flag
+  - is_whitelabel
+  - is_expensive_country
+  - is_electric
+  - supplier_general
+  - renter_feedback
+  - renter_service
+  - country_cluster
+  - brand_cluster_label
+  - hour_sine_encoded
+  - hour_cosine_encoded
+  - rentalcar_category
+  - rentalcar_type
+label: score
+grouping_key: request_uid_hash
+monotone_constraints:
+  rentalcar_price_per_day: -1
+  rentalcar_rating: 1
+  rentalcar_renter_rating: 1
+  rentalcar_deposit_rating: 1
+  supplier_general: 1
+  renter_feedback: 1
+  renter_service: 1
