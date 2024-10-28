@@ -1,8 +1,10 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as s3deployment from 'aws-cdk-lib/aws-s3-deployment';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as sagemaker from '@aws-cdk/aws-sagemaker-alpha';
+import * as sagemaker from 'aws-cdk-lib/aws-sagemaker';
 
 import * as path from 'path';
 
@@ -17,11 +19,19 @@ export class SagemakerSampleSetupStack extends cdk.Stack {
       autoDeleteObjects: true
     });
 
-    const destBucket = new s3.Bucket(this, 'dest_bucket', {
-      bucketName: 'sagemaker-sample-workshop-dest-bucket',
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true
+    new s3deployment.BucketDeployment(this, 'data_deployment', {
+      sources: [s3deployment.Source.asset(path.join('notebooks'))],
+      destinationBucket: sourceBucket,
+      destinationKeyPrefix: ''
+    });
+
+    const notebookRole = new iam.Role(this, 'notebook_role', {
+      roleName: 'sagemaker-sample-workshop-notebook-role',
+      assumedBy: new iam.ServicePrincipal('sagemaker.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSageMakerFullAccess'),
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonS3ReadOnlyAccess')
+      ]
     });
 
     const vpc = new ec2.Vpc(this, 'vpc', {
@@ -39,20 +49,30 @@ export class SagemakerSampleSetupStack extends cdk.Stack {
       maxAzs: 1
     });
 
-    const image = sagemaker.ContainerImage.fromAsset(path.join('docker', 'model'));
-    const modelData = sagemaker.ModelData.fromAsset(path.join('data', 'model', 'sample_data.tar.gz'));
-
-    const model = new sagemaker.Model(this, 'model', {
-      vpc: vpc,
-      vpcSubnets: vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }),
-      modelName: 'sagemaker-sample-workshop-model',
-      containers: [
-        {
-          image: image,
-          modelData: modelData,
-        }
-      ]
+    const noteboook = new sagemaker.CfnNotebookInstance(this, 'notebook', {
+      notebookInstanceName: 'sagemaker-sample-workshop-notebook',
+      instanceType: 'ml.g4dn.12xlarge',
+      roleArn: notebookRole.roleArn,
+      securityGroupIds: [vpc.vpcDefaultSecurityGroup],
+      subnetId: vpc.privateSubnets[0].subnetId,
+      directInternetAccess: 'Enabled',
+      rootAccess: 'Enabled',
+      volumeSizeInGb: 100
     });
+
+    
+
+    // const model = new sagemaker.Model(this, 'model', {
+    //   vpc: vpc,
+    //   vpcSubnets: vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }),
+    //   modelName: 'sagemaker-sample-workshop-model',
+    //   containers: [
+    //     {
+    //       image: image,
+    //       modelData: modelData,
+    //     }
+    //   ]
+    // });
   }
 }
 
